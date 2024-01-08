@@ -402,7 +402,7 @@ class IqnMlpNet(nn.Module):
 class DrqnMlpNet(nn.Module):
     """DRQN MLP network."""
 
-    def __init__(self, state_dim: int, action_dim: int):
+    def __init__(self, state_dim: int, action_dim: int, layer_num: int = 2, hidden_dim: int = 256) -> None:
         """
         Args:
             state_dim: the shape of the input tensor to the neural network
@@ -416,12 +416,25 @@ class DrqnMlpNet(nn.Module):
         super().__init__()
         self.action_dim = action_dim
 
-        self.body = nn.Sequential(
-            nn.Linear(state_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-        )
+        self.body = []
+        self.body.append(nn.Linear(state_dim, hidden_dim))
+        self.body.append(nn.ReLU())
+
+        prev_dim = hidden_dim
+
+        for _ in range(layer_num-1):
+            self.body.append(nn.Linear(prev_dim, prev_dim//2))
+            self.body.append(nn.ReLU())
+            prev_dim = prev_dim//2
+
+        self.body = nn.Sequential(*self.body)
+
+        # self.body = nn.Sequential(
+        #     nn.Linear(state_dim, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 128),
+        #     nn.ReLU(),
+        # )
 
         self.lstm = nn.LSTM(input_size=128, hidden_size=128, num_layers=1, batch_first=True)
 
@@ -444,8 +457,6 @@ class DrqnMlpNet(nn.Module):
         assert len(x.shape) == 3
         B = x.shape[0]
         T = x.shape[1]
-
-        print(x.shape)
 
         x = torch.flatten(x, 0, 1)  # Merge batch and time dimension.
 
